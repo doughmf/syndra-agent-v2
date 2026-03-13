@@ -1,0 +1,44 @@
+# Ambiente
+.env
+.env.local
+.env.*.local
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testes
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Logs
+logs/
+*.log
+
+# Banco de dados
+*.sqlite
+*.db
+
+# Docker
+.dockerignore
+
+# Node (se houver front-end)
+node_modules/
+dist/
+build/
+
+# Arquivo de segurança (NUNCA commitar!)
+.env
+secrets.json
+

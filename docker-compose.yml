@@ -1,0 +1,168 @@
+version: '3.8'
+
+services:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # API - Syndra Agent
+  # ═══════════════════════════════════════════════════════════════════════════
+  
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: syndra-api
+    
+    ports:
+      - "8000:8000"
+    
+    environment:
+      # Aplicação
+      APP_ENV: ${APP_ENV:-development}
+      DEBUG: ${DEBUG:-false}
+      
+      # Condomínio
+      CONDO_NAME: ${CONDO_NAME:-Condomínio SaaS}
+      CONDO_CNPJ: ${CONDO_CNPJ}
+      
+      # LLM
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      
+      # Supabase
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      
+      # Evolution API
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      
+      # Redis
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      
+      # Segurança
+      SECRET_KEY: ${SECRET_KEY}
+      WEBHOOK_TOKEN: ${WEBHOOK_TOKEN}
+    
+    depends_on:
+      - redis
+    
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./logs:/app/logs
+    
+    networks:
+      - syndra-network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    
+    restart: unless-stopped
+    
+    labels:
+      - "com.syndra.app=api"
+      - "com.syndra.version=2.0.0"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Redis - Cache & Sessions
+  # ═══════════════════════════════════════════════════════════════════════════
+  
+  redis:
+    image: redis:7-alpine
+    container_name: syndra-redis
+    
+    ports:
+      - "6379:6379"
+    
+    volumes:
+      - redis-data:/data
+    
+    networks:
+      - syndra-network
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    restart: unless-stopped
+    
+    labels:
+      - "com.syndra.app=redis"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Evolution API (opcional - para desenvolvimento local)
+  # ═══════════════════════════════════════════════════════════════════════════
+  
+  # Descomentar se quiser rodar Evolution API localmente
+  # evolution:
+  #   image: atendimento/evolution-api:latest
+  #   container_name: syndra-evolution
+  #   
+  #   ports:
+  #     - "8080:8080"
+  #   
+  #   environment:
+  #     NODE_ENV: production
+  #     SERVER_PORT: 8080
+  #   
+  #   volumes:
+  #     - evolution-data:/app/data
+  #   
+  #   networks:
+  #     - syndra-network
+  #   
+  #   restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Nginx - Reverse Proxy (para produção)
+  # ═══════════════════════════════════════════════════════════════════════════
+  
+  nginx:
+    image: nginx:alpine
+    container_name: syndra-nginx
+    
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    
+    depends_on:
+      - api
+    
+    networks:
+      - syndra-network
+    
+    restart: unless-stopped
+    
+    labels:
+      - "com.syndra.app=nginx"
+    
+    profiles:
+      - "production"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Volumes
+# ═══════════════════════════════════════════════════════════════════════════
+
+volumes:
+  redis-data:
+    driver: local
+  evolution-data:
+    driver: local
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Networks
+# ═══════════════════════════════════════════════════════════════════════════
+
+networks:
+  syndra-network:
+    driver: bridge
+
